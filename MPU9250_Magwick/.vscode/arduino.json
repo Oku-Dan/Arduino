@@ -1,0 +1,6 @@
+{
+    "port": "COM4",
+    "board": "arduino:avr:nano",
+    "configuration": "cpu=atmega328old",
+    "sketch": "MPU9250_Magwick.ino"
+}

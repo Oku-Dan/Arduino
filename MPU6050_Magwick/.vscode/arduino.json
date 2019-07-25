@@ -1,0 +1,7 @@
+{
+    "programmer": "AVRISP mkII",
+    "board": "arduino:avr:nano",
+    "configuration": "cpu=atmega328old",
+    "port": "COM3",
+    "sketch": "MPU6050_Magwick\\MPU6050_Magwick.ino"
+}
