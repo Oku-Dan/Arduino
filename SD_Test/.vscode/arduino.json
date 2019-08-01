@@ -1,5 +1,5 @@
 {
-    "port": "COM3",
+    "port": "COM4",
     "board": "arduino:avr:nano",
     "programmer": "AVR ISP",
     "sketch": "SD_Test.ino",
