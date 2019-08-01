@@ -1,7 +1,7 @@
 {
-    "port": "COM4",
+    "port": "COM3",
     "board": "arduino:avr:nano",
-    "configuration": "cpu=atmega328old",
     "programmer": "AVR ISP",
-    "sketch": "SD_Test.ino"
+    "sketch": "SD_Test.ino",
+    "configuration": "cpu=atmega328old"
 }
