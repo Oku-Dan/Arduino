@@ -22,8 +22,6 @@
 #define CNTL1_MODE_SEL_100HZ 0x16 //磁気センサの出力周期(100Hz)
 #define ST1 0x02				  //データ読み込み用フラッグのアドレス
 
-#define SAMPLING_RATE 100 //Hz
-
 float accRange;  //計算で使用するので，選択したレンジを入力する定数
 float gyroRange; //計算で使用するので，選択したレンジを入力する定数
 float magRange;  //計算で使用するので，選択したレンジを入力する定数
@@ -108,7 +106,7 @@ public:
 		ResetOffset();
 	}
 
-	bool UpDate()
+	void UpDate()
 	{
 		last_samplingTime = micros();
 		I2CRead(MPU9250_ADDRESS, 0x3b, 14, AccelGyroData); //0x3bから，14バイト分をaccGyroDataにいれる
@@ -158,6 +156,6 @@ public:
 		magX = (mx - (Mag_MAX[0] + Mag_min[0]) / 2) * magRange; //[mGause]
 		magY = (my - (Mag_MAX[1] + Mag_min[1]) / 2) * magRange;
 		magZ = (mz - (Mag_MAX[2] + Mag_min[2]) / 2) * magRange;
-		return true;
+		return;
 	}
 };
