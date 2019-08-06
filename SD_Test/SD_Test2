@@ -1,9 +1,9 @@
-//#include "SD.h"
+#include "SD.h"
 #include "Wire.h"
 #include "freeram.h"
 #include "mpu.h"
 
-#define packet_size 16
+#define packet_size 4
 
 File file;
 unsigned int count[packet_size], counter = 0;
@@ -18,7 +18,7 @@ unsigned int err_o = 0; //cumulative number of MPU/DMP reads that had overflow b
 
 void setup() {
   Serial.begin(230400);
-  SD.begin(4);
+  SD.begin(7);
   if (SD.exists("data.txt"))
     SD.remove("data.txt");
   file = SD.open("data.txt", FILE_WRITE);
@@ -83,3 +83,62 @@ void WriteDatas(){
   }
   file.close();
 }
+/*
+#include "SD.h"
+
+#define packet_size 16
+
+File file;
+unsigned int count[packet_size], counter = 0;
+unsigned long time[packet_size];
+float x[packet_size], y[packet_size], z[packet_size];
+unsigned long n = 0;
+
+void setup()
+{
+  Serial.begin(230400);
+  SD.begin(7);
+  if (SD.exists("data.txt"))
+    SD.remove("data.txt");
+}
+
+void loop()
+{
+  while (micros() - n < 1000);
+  n = micros();
+  count[counter % packet_size] = counter;
+  time[counter % packet_size] = micros();
+  x[counter % packet_size] = random(0, 100);
+  y[counter % packet_size] = random(0, 100);
+  z[counter % packet_size] = random(0, 100);
+  if (counter % packet_size == packet_size - 1)
+  {
+    WriteDatas();
+  }
+  counter++;
+}
+
+void WriteDatas()
+{
+  file = SD.open("data.txt", FILE_WRITE);
+  if(file){
+    for (int i = 0; i < packet_size; i++)
+    {
+      file.print("No.");
+      file.print(count[i]);
+      file.print(" ");
+      file.print(time[i]);
+      file.print(" : ");
+      file.print(x[i]);
+      file.print(" ");
+      file.print(y[i]);
+      file.print(" ");
+      file.print(z[i]);
+      file.println();
+    }
+    Serial.println("Data logged!!");
+  }else{
+    Serial.println("Failed");
+  }
+  file.close();
+} */
