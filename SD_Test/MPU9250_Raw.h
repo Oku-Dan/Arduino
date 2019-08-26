@@ -1,6 +1,6 @@
 #include <Wire.h>
 
-#define MPU9250_ADDRESS 0x68 //I2CでのMPU9250のスレーブアドレス
+#define MPU9250_ADDRESS 0x68 //MPU9250のスレーブアドレス
 #define PWR_MGMT_1 0x6b		 //電源管理のアドレス，スリープモード解除用
 #define INT_PIN_CFG 0x37	 //磁気センサのバイパスモード設定用のアドレス
 
@@ -106,15 +106,16 @@ public:
 		ResetOffset();
 	}
 
-	void UpDate()
+	bool UpDate()
 	{
-		last_samplingTime = micros();
-		I2CRead(MPU9250_ADDRESS, 0x3b, 14, AccelGyroData); //0x3bから，14バイト分をaccGyroDataにいれる
 		I2CRead(AK8963_ADDRESS, ST1, 1, &ST1Bit);		   //磁気センサのフラグチェック
 		if ((ST1Bit & 0x01))
 		{
 			I2CRead(AK8963_ADDRESS, 0x03, 7, MagneticData); //7番目の0x09(ST2)まで読まないとデータが更新されない
-		}
+		}else
+			return true;
+		last_samplingTime = micros();
+		I2CRead(MPU9250_ADDRESS, 0x3b, 14, AccelGyroData); //0x3bから，14バイト分をaccGyroDataにいれる
 
 		ax = (AccelGyroData[0] << 8) | AccelGyroData[1];
 		ay = (AccelGyroData[2] << 8) | AccelGyroData[3];
@@ -129,7 +130,7 @@ public:
 		mx = (MagneticData[3] << 8) | MagneticData[2]; //センサの軸が違うので順番が加速度とジャイロと違う
 		my = (MagneticData[1] << 8) | MagneticData[0];
 		mz = -((MagneticData[5] << 8) | MagneticData[4]); //加速度，ジャイロセンサと軸の向きが逆なので-を掛ける
-
+			
 		accX = ax * accRange; //[G]
 		accY = ay * accRange;
 		accZ = az * accRange;
@@ -156,6 +157,8 @@ public:
 		magX = (mx - (Mag_MAX[0] + Mag_min[0]) / 2) * magRange; //[mGause]
 		magY = (my - (Mag_MAX[1] + Mag_min[1]) / 2) * magRange;
 		magZ = (mz - (Mag_MAX[2] + Mag_min[2]) / 2) * magRange;
-		return;
+		Serial.println(magX);
+
+		return true;
 	}
 };

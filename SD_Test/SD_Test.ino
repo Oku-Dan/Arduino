@@ -1,7 +1,7 @@
 #include "MPU9250_Raw.h"
 #include "SD.h"
 
-#define PACKET_SIZE 20
+#define PACKET_SIZE 10
 #define SPI_CS_PIN 7
 
 typedef struct
@@ -32,7 +32,9 @@ void setup() {
 }
 
 void loop() {
-  mpu.UpDate();
+  while(!mpu.UpDate());
+
+  Serial.println(mpu.magX);
 
   count++;
   data[count % PACKET_SIZE - 1].magX = mpu.magX;
@@ -77,26 +79,4 @@ void loop() {
     }
     file.close();
   }
-  /*
-  file = SD.open("data.txt", FILE_WRITE);
-  file.print(mpu.magX);
-  file.print(",");
-  file.print(mpu.magY);
-  file.print(",");
-  file.print(mpu.magZ);
-  file.print(",");
-  file.print(mpu.accX);
-  file.print(",");
-  file.print(mpu.accY);
-  file.print(",");
-  file.print(mpu.accZ);
-  file.print(",");
-  file.print(mpu.gyroX);
-  file.print(",");
-  file.print(mpu.gyroY);
-  file.print(",");
-  file.print(mpu.gyroZ);
-  file.print(",");
-  file.println(mpu.last_samplingTime);
-  file.close();*/
 }

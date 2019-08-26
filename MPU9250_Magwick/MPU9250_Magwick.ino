@@ -81,7 +81,7 @@ void loop()
 	MPU9250();
 	MadgwickFilter.update(gyroX, gyroY, gyroZ, accX, accY, accZ, magX,magY,magZ);
 	now = micros();
-	/*Serial.print("ax: ");
+	Serial.print("ax: ");
 	Serial.print(accX);
 	Serial.print("\t");
 	Serial.print("ay: ");
@@ -110,13 +110,13 @@ void loop()
 	Serial.print("\t");
 	Serial.print("temp: ");
 	Serial.print(tempMPU9250);
-	Serial.println("\t"); */
+	Serial.println("\t"); /*
 	Serial.print(MadgwickFilter.getYaw());
 	Serial.print(" ");
 	Serial.print(MadgwickFilter.getRoll());
 	Serial.print(" ");
 	Serial.print(MadgwickFilter.getPitch());
-	Serial.println(" ");
+	Serial.println(" ");*/
 	//Serial.println(now - last);
 	last = now;
 }
