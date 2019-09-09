@@ -1,3 +1,6 @@
+#include <Arduino.h>
+#line 1 "c:\\Users\\OKU_DAN\\source\\Arduino\\DataLogger\\DataLogger.ino"
+#line 1 "c:\\Users\\OKU_DAN\\source\\Arduino\\DataLogger\\DataLogger.ino"
 //#include "SD.h"
 #include "LSM9DS1.h"
 #define file Serial
@@ -8,6 +11,11 @@ float x, y, z;
 //File file;
 bool flag;
 
+#line 11 "c:\\Users\\OKU_DAN\\source\\Arduino\\DataLogger\\DataLogger.ino"
+void setup();
+#line 35 "c:\\Users\\OKU_DAN\\source\\Arduino\\DataLogger\\DataLogger.ino"
+void loop();
+#line 11 "c:\\Users\\OKU_DAN\\source\\Arduino\\DataLogger\\DataLogger.ino"
 void setup()
 {
 	Serial.begin(230400);
@@ -18,8 +26,6 @@ void setup()
 		Serial.println("LSM9DS1 has been initialized");
 	}else{
 		Serial.println("ERROR : LSM9DS1 hasn't been initialized!!");
-		while (1)
-			;
 	}
 
 	//Calibrate_LSM9DS1();
@@ -101,3 +107,4 @@ void loop()
 	file.print(',');
 	file.println(z);
 }
+
