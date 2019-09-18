@@ -2,7 +2,7 @@
 #include "SD.h"
 
 #define PACKET_SIZE 10
-#define SPI_CS_PIN 7
+#define SPI_CS_PIN 10
 
 typedef struct
 {

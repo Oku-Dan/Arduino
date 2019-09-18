@@ -87,8 +87,10 @@
 #define WHO_AM_I_AG_RSP 0x68
 #define WHO_AM_I_M_RSP 0x3D
 
-#define ACC_SAMPLING_RATE 0b101 //011 : 119Hz / 100 : 238Hz / 101 : 476Hz / 110 : 952Hz
-#define GYR_SAMPLING_RATE 0b101 //011 : 119Hz / 100 : 238Hz / 101 : 476Hz / 110 : 952Hz
+
+#define ACC_SAMPLING_RATE 0b100 //011 : 119Hz / 100 : 238Hz / 101 : 476Hz / 110 : 952Hz
+#define GYR_SAMPLING_RATE 0b100 //011 : 119Hz / 100 : 238Hz / 101 : 476Hz / 110 : 952Hz
+// To use FIFO, AccODR and GyrODR must be same.
 #define MAG_SAMPLING_RATE 0b111 //011 : 5Hz / 100 : 10Hz / 101 : 20Hz / 110 : 40Hz / 111 : 80Hz
 
 #define SENSITIVITY_ACCELEROMETER_2 0.000061
@@ -103,30 +105,38 @@
 #define SENSITIVITY_MAGNETOMETER_12 0.00043
 #define SENSITIVITY_MAGNETOMETER_16 0.00058
 
-class LSM_9DS1{
-	private :
-		void AccInit(int scale);
-		void GyrInit(int scale);
-		void MagInit(int scale);
-		float AccelSensitivity = SENSITIVITY_ACCELEROMETER_2;
-		float GyroSensitivity = SENSITIVITY_GYROSCOPE_245;
-		float MagnetSensitivity = SENSITIVITY_MAGNETOMETER_4;
+class LSM_9DS1
+{
+private:
+	void FIFOInit();
+	void AccInit(int scale);
+	void GyrInit(int scale);
+	void MagInit(int scale);
+	void FiltersInit();
+	float AccelSensitivity = SENSITIVITY_ACCELEROMETER_2;
+	float GyroSensitivity = SENSITIVITY_GYROSCOPE_245;
+	float MagnetSensitivity = SENSITIVITY_MAGNETOMETER_4;
 
-	public : 
-		bool Initialize(int AccelScale, int GyroScale, int MagnetScale);
-		bool ReadAcc(float *x, float *y, float *z);
-		bool ReadGyr(float *x, float *y, float *z);
-		bool ReadMag(float *x, float *y, float *z);
+public:
+	bool Initialize(int AccelScale, int GyroScale, int MagnetScale);
+	bool ReadAcc(float *x, float *y, float *z);
+	bool ReadGyr(float *x, float *y, float *z);
+	void ReadAccFIFO(float *x, float *y, float *z);
+	void ReadGyrFIFO(float *x, float *y, float *z);
+	bool ReadMag(float *x, float *y, float *z);
+	int availableFIFO();
 };
 
-void WriteByte(uint8_t add, uint8_t reg, uint8_t data){
+void WriteByte(uint8_t add, uint8_t reg, uint8_t data)
+{
 	Wire.beginTransmission(add);
 	Wire.write(reg);
 	Wire.write(data);
 	Wire.endTransmission();
 }
 
-uint8_t ReadByte(uint8_t add, uint8_t reg){
+uint8_t ReadByte(uint8_t add, uint8_t reg)
+{
 	Wire.beginTransmission(add);
 	Wire.write(reg);
 	Wire.endTransmission(false);
@@ -134,18 +144,107 @@ uint8_t ReadByte(uint8_t add, uint8_t reg){
 	uint8_t data = Wire.read();
 	return data;
 }
-void ReadBytes(uint8_t add, uint8_t reg, uint8_t *data, uint8_t count){
+void ReadBytes(uint8_t add, uint8_t reg, uint8_t *data, uint8_t count)
+{
 	byte retVal;
 	Wire.beginTransmission(add);
 	Wire.write(reg | 0x80);
 	Wire.endTransmission(false);
 	Wire.requestFrom(add, count);
-	for (int i = 0; i < count;i++){
+	for (int i = 0; i < count; i++)
+	{
 		data[i] = Wire.read();
 	}
 }
 
-void LSM_9DS1::AccInit(int scale){
+void LSM_9DS1::FIFOInit(){
+	uint8_t tempRegValue = 0;
+
+	// CTRL_REG9 (0x23) (Default value: 0x00)
+	//	[0][SLEEP_G][0][FIFO_TEMP_END][RDY_mask_bit][I2C_DISABLE][FIFO_EN][STOP_ON_FTH]
+	//	SLEEP_G - Gyroscope sleep mode enable. Default value: 0	(0: disabled; 1: enabled)
+	//	FIFO_TEMP_EN - Temperature data storage in FIFO enable. Default value: 0
+	//		(0: temperature data not stored in FIFO; 1: temperature data stored in FIFO)
+	//	DRDY_mask_bit -  Data available enable bit. Default value: 0 (0: DA timer disabled; 1: DA timer enabled)
+	//	I2C_DISABLE - Disable I2C interface. Default value: 0
+	// 		(0: both I2C and SPI enabled; 1: I2C disabled, SPI only)
+	// FIFO_EN FIFO - memory enable. Default value: 0 (0: disabled; 1: enabled)
+	// STOP_ON_FTH - Enable FIFO threshold level use. Default value: 0
+	// 		(0: FIFO depth is not limited; 1: FIFO depth is limited to threshold level)
+	tempRegValue |= (0b10 & 0x3);
+	WriteByte(LSM9DS1_AG, CTRL_REG9, tempRegValue);
+
+	//	FIFO_CTRL (0x2E) (Default value: 0x00)
+	//	[FMODE2][FMODE1][FMODE0][FTH4][FTH3][FTH2][FTH1][FTH0]
+	//	FMODE [2:0] FIFO mode selection bits. Default value: 000
+	// 		000 Bypass mode. FIFO turned off
+	// 		001 FIFO mode. Stops collecting data when FIFO is full.
+	// 		010 Reserved
+	//		011 Continuous mode until trigger is deasserted, then FIFO mode.
+	// 		100 Bypass mode until trigger is deasserted, then Continuous mode.
+	// 		110 Continuous mode. If the FIFO is full, the new sample overwrites the older sample.
+	//	FTH [4:0] FIFO threshold level setting. Default value: 00000
+	tempRegValue = 0;
+	tempRegValue |= (0b110 & 0x07) << 5;
+	WriteByte(LSM9DS1_AG, FIFO_CTRL, tempRegValue);
+}
+
+void LSM_9DS1::FiltersInit()
+{
+	uint8_t tempRegValue = 0;
+
+	// REFERENCE_G (0x0B)
+	// [REF7_G][REF6_G][REF5_G][REF4_G][REF3_G][REF2_G][REF1_G][REF0_G]
+	//	REF_G [7:0] Reference value for gyroscope’s digital high-pass filter (r/w).(Default value : 0000 0000)
+	WriteByte(LSM9DS1_AG, REFERENCE_G, 0x00);
+
+	// CTRL_REG3_G (Default value: 0x00)
+	// [LP_mode][HP_EN][0][0][HPCF3_G][HPCF2_G][HPCF1_G][HPCF0_G]
+	// LP_mode - Low-power mode enable (0: disabled, 1: enabled)
+	// HP_EN - HPF enable (0:disabled, 1: enabled)
+	// HPCF_G[3:0] - HPF cutoff frequency (0000 ~ 1001 depends on ODR)
+	tempRegValue |= (0b01 & 0x03) << 6;
+	tempRegValue |= (0b0011 & 0x11);
+	WriteByte(LSM9DS1_AG, CTRL_REG3_G, tempRegValue);
+
+	// CTRL_REG6_XL (0x20) (Default value: 0x00)
+	// [ODR_XL2][ODR_XL1][ODR_XL0][FS1_XL][FS0_XL][BW_SCAL_ODR][BW_XL1][BW_XL0]
+	// ODR_XL[2:0] - Output data rate & power mode selection
+	// FS_XL[1:0] - Full-scale selection
+	// BW_SCAL_ODR - Bandwidth selection
+	//	(0: bandwidth determined by ODR selection:
+	//	 -BW = 408 Hz when ODR = 952 Hz, 50 Hz, 10 Hz;
+	//	 -BW = 211 Hz when ODR = 476 Hz;
+	//	 -BW = 105 Hz when ODR = 238 Hz;
+	//	 -BW = 50 Hz when ODR = 119 Hz;)
+	//	1: bandwidth selected according to BW_XL [2:1] selection)
+	// BW_XL[1:0] - Anti-aliasing filter bandwidth selection (00: 408 Hz; 01: 211 Hz; 10: 105 Hz; 11: 50 Hz)
+	// To disable the accel, set the sampleRate bits to 0.
+	tempRegValue = ReadByte(LSM9DS1_AG, CTRL_REG6_XL);
+	tempRegValue &= 0b11111000;
+	tempRegValue |= (0b000 & 0x07);
+	WriteByte(LSM9DS1_AG, CTRL_REG6_XL, tempRegValue);
+
+	// CTRL_REG7_XL (0x21) (Default value: 0x00)
+	// [HR][DCF1][DCF0][0][0][FDS][0][HPIS1]
+	// HR - High resolution mode (0: disable, 1: enable)
+	// DCF[1:0] - Digital filter cutoff frequency
+	//	1 00 : ODR / 50
+	//	1 01 : ODR / 100
+	//	1 10 : ODR / 9
+	//	1 11 : ODR / 400
+	// FDS - Filtered data selection
+	//	(0: internal filter bypassed; 1: data from internal filter sent to output register and FIFO)
+	// HPIS1 - HPF enabled for interrupt function
+	tempRegValue = 0;
+	tempRegValue |= 0x01 << 7;
+	tempRegValue |= (0b00 & 0x3) << 5;
+	tempRegValue |= 0b100;
+	WriteByte(LSM9DS1_AG, CTRL_REG7_XL, tempRegValue);
+}
+
+void LSM_9DS1::AccInit(int scale)
+{
 
 	uint8_t tempRegValue = 0;
 
@@ -156,7 +255,7 @@ void LSM_9DS1::AccInit(int scale){
 	//	Zen_XL - Z-axis output enabled
 	//	Yen_XL - Y-axis output enabled
 	//	Xen_XL - X-axis output enabled
-	WriteByte(LSM9DS1_AG,CTRL_REG5_XL, 0b111000);
+	WriteByte(LSM9DS1_AG, CTRL_REG5_XL, 0b111000);
 
 	// CTRL_REG6_XL (0x20) (Default value: 0x00)
 	// [ODR_XL2][ODR_XL1][ODR_XL0][FS1_XL][FS0_XL][BW_SCAL_ODR][BW_XL1][BW_XL0]
@@ -165,6 +264,8 @@ void LSM_9DS1::AccInit(int scale){
 	// BW_SCAL_ODR - Bandwidth selection
 	// BW_XL[1:0] - Anti-aliasing filter bandwidth selection
 	// To disable the accel, set the sampleRate bits to 0.
+	tempRegValue = ReadByte(LSM9DS1_AG, CTRL_REG6_XL);
+	tempRegValue &= 0b00000111;
 	tempRegValue |= (ACC_SAMPLING_RATE & 0x07) << 5;
 	switch (scale)
 	{
@@ -182,17 +283,10 @@ void LSM_9DS1::AccInit(int scale){
 		break;
 		// Otherwise it'll be set to 2g (0x0 << 3)
 	}
-	WriteByte(LSM9DS1_AG,CTRL_REG6_XL, tempRegValue);
-
-	// CTRL_REG7_XL (0x21) (Default value: 0x00)
-	// [HR][DCF1][DCF0][0][0][FDS][0][HPIS1]
-	// HR - High resolution mode (0: disable, 1: enable)
-	// DCF[1:0] - Digital filter cutoff frequency
-	// FDS - Filtered data selection
-	// HPIS1 - HPF enabled for interrupt function
-	WriteByte(LSM9DS1_AG,CTRL_REG7_XL, 0);
+	WriteByte(LSM9DS1_AG, CTRL_REG6_XL, tempRegValue);
 }
-void LSM_9DS1::GyrInit(int scale){
+void LSM_9DS1::GyrInit(int scale)
+{
 	uint8_t tempRegValue = 0;
 	// CTRL_REG1_G (Default value: 0x00)
 	// [ODR_G2][ODR_G1][ODR_G0][FS_G1][FS_G0][0][BW_G1][BW_G0]
@@ -223,13 +317,6 @@ void LSM_9DS1::GyrInit(int scale){
 	// OUT_SEL[1:0] - Out selection configuration
 	WriteByte(LSM9DS1_AG, CTRL_REG2_G, 0x00);
 
-	// CTRL_REG3_G (Default value: 0x00)
-	// [LP_mode][HP_EN][0][0][HPCF3_G][HPCF2_G][HPCF1_G][HPCF0_G]
-	// LP_mode - Low-power mode enable (0: disabled, 1: enabled)
-	// HP_EN - HPF enable (0:disabled, 1: enabled)
-	// HPCF_G[3:0] - HPF cutoff frequency
-	WriteByte(LSM9DS1_AG, CTRL_REG3_G, 0x00);
-
 	// CTRL_REG4 (Default value: 0x38)
 	// [0][0][Zen_G][Yen_G][Xen_G][0][LIR_XL1][4D_XL1]
 	// Zen_G - Z-axis output enable (0:disable, 1:enable)
@@ -246,7 +333,8 @@ void LSM_9DS1::GyrInit(int scale){
 	// Orient [2:0] - Directional user orientation selection
 	WriteByte(LSM9DS1_AG, ORIENT_CFG_G, 0);
 }
-void LSM_9DS1::MagInit(int scale){
+void LSM_9DS1::MagInit(int scale)
+{
 	uint8_t tempRegValue = 0;
 
 	// CTRL_REG1_M (Default value: 0x10)
@@ -257,11 +345,16 @@ void LSM_9DS1::MagInit(int scale){
 	//	10: high performance, 11:ultra-high performance
 	// DO[2:0] - Output data rate selection
 	// FAST_ODR - data rate higher than 80Hz (0:disable, 1:enable)
+	// 	LP - 1000Hz
+	// 	MP - 560Hz
+	// 	HP - 300Hz
+	// 	UHP - 155Hz
 	// ST - Self-test enable
+	tempRegValue |= (0b1 & 0x1) << 7;
 	tempRegValue |= (0b11 & 0x3) << 5;
 	tempRegValue |= (MAG_SAMPLING_RATE & 0x7) << 2;
-	tempRegValue |= 0b10;
-	WriteByte(LSM9DS1_M,CTRL_REG1_M, tempRegValue);
+	tempRegValue |= 0b10;	//set ODR 300Hz
+	WriteByte(LSM9DS1_M, CTRL_REG1_M, tempRegValue);
 
 	// CTRL_REG2_M (Default value 0x00)
 	// [0][FS1][FS0][0][REBOOT][SOFT_RST][0][0]
@@ -285,7 +378,7 @@ void LSM_9DS1::MagInit(int scale){
 		break;
 		// Otherwise we'll default to 4 gauss (00)
 	}
-	WriteByte(LSM9DS1_M,CTRL_REG2_M, tempRegValue);
+	WriteByte(LSM9DS1_M, CTRL_REG2_M, tempRegValue);
 
 	// CTRL_REG3_M (Default value: 0x03)
 	// [I2C_DISABLE][0][LP][0][0][SIM][MD1][MD0]
@@ -295,7 +388,7 @@ void LSM_9DS1::MagInit(int scale){
 	// MD[1:0] - Operating mode
 	//	00:continuous conversion, 01:single-conversion,
 	//  10,11: Power-down
-	WriteByte(LSM9DS1_M,CTRL_REG3_M, 0); // Continuous conversion mode
+	WriteByte(LSM9DS1_M, CTRL_REG3_M, 0); // Continuous conversion mode
 
 	// CTRL_REG4_M (Default value: 0x00)
 	// [0][0][0][0][OMZ1][OMZ0][BLE][0]
@@ -305,26 +398,32 @@ void LSM_9DS1::MagInit(int scale){
 	// BLE - Big/little endian data
 	tempRegValue = 0;
 	tempRegValue = (0b11 & 0x3) << 2;
-	WriteByte(LSM9DS1_M,CTRL_REG4_M, 0b1000);
+	WriteByte(LSM9DS1_M, CTRL_REG4_M, 0b1000);
 
 	// CTRL_REG5_M (Default value: 0x00)
 	// [0][BDU][0][0][0][0][0][0]
 	// BDU - Block data update for magnetic data
 	//	0:continuous, 1:not updated until MSB/LSB are read
-	WriteByte(LSM9DS1_M,CTRL_REG5_M, 0);
+	WriteByte(LSM9DS1_M, CTRL_REG5_M, 0);
 }
 
-bool LSM_9DS1::Initialize(int AccelScale, int GyroScale, int MagnetScale){
+bool LSM_9DS1::Initialize(int AccelScale, int GyroScale, int MagnetScale)
+{
 	Wire.begin();
 
 	//=====接続確認=====
-	uint8_t mTest = ReadByte(LSM9DS1_M,WHO_AM_I_M);
-	uint8_t agTest = ReadByte(LSM9DS1_AG,WHO_AM_I_XG);
+	uint8_t mTest = ReadByte(LSM9DS1_M, WHO_AM_I_M);
+	uint8_t agTest = ReadByte(LSM9DS1_AG, WHO_AM_I_XG);
 	uint16_t whoAmICombined = (agTest << 8) | mTest;
-	if (whoAmICombined != ((WHO_AM_I_AG_RSP << 8) | WHO_AM_I_M_RSP)){
+	if (whoAmICombined != ((WHO_AM_I_AG_RSP << 8) | WHO_AM_I_M_RSP))
+	{
 		return false;
 	}
 
+	//=====FIFO有効化=====
+	FIFOInit();
+	//=====フィルタ有効化=====
+	FiltersInit();
 	//=====センサ初期化=====
 	AccInit(AccelScale);
 	GyrInit(GyroScale);
@@ -333,9 +432,11 @@ bool LSM_9DS1::Initialize(int AccelScale, int GyroScale, int MagnetScale){
 	return true;
 }
 
-bool LSM_9DS1::ReadAcc(float *x, float *y, float *z){
-	uint8_t status = ReadByte(LSM9DS1_AG,STATUS_REG_1);
-	if(status & 0b01){
+bool LSM_9DS1::ReadAcc(float *x, float *y, float *z)
+{
+	uint8_t status = ReadByte(LSM9DS1_AG, STATUS_REG_1);
+	if (status & 0b01)
+	{
 		uint8_t temp[6];
 		ReadBytes(LSM9DS1_AG, OUT_X_L_XL, temp, 6);
 
@@ -350,15 +451,18 @@ bool LSM_9DS1::ReadAcc(float *x, float *y, float *z){
 		temp_ = (temp[5] << 8) | temp[4];
 		*z = temp_ * AccelSensitivity;
 		return true;
-	}else{
+	}
+	else
+	{
 		return false;
 	}
 }
 
-bool LSM_9DS1::ReadGyr(float *x, float *y, float *z){
+bool LSM_9DS1::ReadGyr(float *x, float *y, float *z)
+{
 
-	uint8_t status = ReadByte(LSM9DS1_AG,STATUS_REG_1);
-	if((status & 0b10) >> 1)
+	uint8_t status = ReadByte(LSM9DS1_AG, STATUS_REG_1);
+	if ((status & 0b10) >> 1)
 	{
 		uint8_t temp[6];
 		ReadBytes(LSM9DS1_AG, OUT_X_L_G, temp, 6);
@@ -381,7 +485,43 @@ bool LSM_9DS1::ReadGyr(float *x, float *y, float *z){
 	}
 }
 
-bool LSM_9DS1::ReadMag(float *x, float *y, float *z){
+void LSM_9DS1::ReadAccFIFO(float *x, float *y, float *z)
+{
+	uint8_t temp[6];
+	ReadBytes(LSM9DS1_AG, OUT_X_L_XL, temp, 6);
+
+	int16_t temp_;
+
+	temp_ = (temp[1] << 8) | temp[0];
+	*x = temp_ * AccelSensitivity;
+
+	temp_ = (temp[3] << 8) | temp[2];
+	*y = temp_ * AccelSensitivity;
+
+	temp_ = (temp[5] << 8) | temp[4];
+	*z = temp_ * AccelSensitivity;
+}
+
+void LSM_9DS1::ReadGyrFIFO(float *x, float *y, float *z)
+{
+
+	uint8_t temp[6];
+	ReadBytes(LSM9DS1_AG, OUT_X_L_G, temp, 6);
+
+	int16_t temp_;
+
+	temp_ = (temp[1] << 8) | temp[0];
+	*x = temp_ * GyroSensitivity;
+
+	temp_ = (temp[3] << 8) | temp[2];
+	*y = temp_ * GyroSensitivity;
+
+	temp_ = (temp[5] << 8) | temp[4];
+	*z = temp_ * GyroSensitivity;
+}
+
+bool LSM_9DS1::ReadMag(float *x, float *y, float *z)
+{
 	uint8_t status = ReadByte(LSM9DS1_M, STATUS_REG_1);
 	if (status & 1)
 	{
@@ -404,4 +544,18 @@ bool LSM_9DS1::ReadMag(float *x, float *y, float *z){
 	{
 		return false;
 	}
+}
+
+int LSM_9DS1::availableFIFO()
+{
+	// FIFO_SRC (0x2F)
+	// [FTH][OVRN][FSS5][FSS4][FSS3][FSS2][FSS1][FSS0]
+	// FTH -  FIFO threshold status.
+	//	(0: FIFO filling is lower than threshold level; 1: FIFO filling is equal or higher than threshold level)
+	// OVRN - FIFO overrun status.
+	//	(0 : FIFO is not completely filled; 1 : FIFO is completely filled and at least one samples has been overwritten)
+	//FSS [5:0] Number of unread samples stored into FIFO.
+	//	(000000 : FIFO empty; 100000 : FIFO full, 32 unread samples)
+	uint8_t status = ReadByte(LSM9DS1_AG, FIFO_SRC);
+	return status & 0b111111;
 }

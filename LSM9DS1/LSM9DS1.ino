@@ -13,7 +13,9 @@ float mx, my, mz;
 void setup()
 {
   Serial.begin(230400);
-  while(Initialize_LSM9DS1());
+  Serial.println("!");
+  while(!Initialize_LSM9DS1());
+  Serial.println("!");
   MadgwickFilter.begin(UPDATE_RATE);
 }
 

@@ -1,106 +1,180 @@
 # 1 "c:\\Users\\OKU_DAN\\source\\Arduino\\DataLogger\\DataLogger.ino"
 # 1 "c:\\Users\\OKU_DAN\\source\\Arduino\\DataLogger\\DataLogger.ino"
-//#include "SD.h"
-# 3 "c:\\Users\\OKU_DAN\\source\\Arduino\\DataLogger\\DataLogger.ino" 2
+/*#include "SD.h"
+
+#include "LSM9DS1.h"
+
+#include <MsTimer2.h>
 
 
-//#define SPI_CS_PIN 7
 
-float x, y, z;
-//File file;
-bool flag;
+#define SPI_CS_PIN 10
+
+
+
+LSM_9DS1 imu;
+
+String filename;
+
+File file;
+
+unsigned long count = 0;
+
+
+
+void Interrupt(){
+
+	file.close();
+
+	file = SD.open(filename, FILE_WRITE);
+
+}
+
+
 
 void setup()
+
 {
- Serial.begin(230400);
 
- Serial.println("LSM9DS1 is being initialized......");
- if (Initialize_LSM9DS1())
- {
-  Serial.println("LSM9DS1 has been initialized");
- }else{
-  Serial.println("ERROR : LSM9DS1 hasn't been initialized!!");
- }
+	pinMode(SPI_CS_PIN, OUTPUT);
 
- //Calibrate_LSM9DS1();
 
- /*
 
 	SD.begin(SPI_CS_PIN);
 
-	if (SD.exists("data.txt")){
 
-		SD.remove("data.txt");
+
+	for (int i = 1; i < 100;i++){
+
+		filename = String(i) + ".txt";
+
+		if (!SD.exists(filename))
+
+		{
+
+			break;
+
+		}
+
+		if(i >= 99){
+
+			SD.remove(filename);
+
+		}
 
 	}
 
 
 
-	file = SD.open("data.txt", FILE_WRITE);*/
-# 32 "c:\\Users\\OKU_DAN\\source\\Arduino\\DataLogger\\DataLogger.ino"
- Serial.println("Accel X(m/s*s),Accel Y(m/s*s),Accel Z(m/s*s),Gyro X(deg/s),Gyro Y(deg/s),Gyro Z(deg/s),Magnetic X(Gauss),Magnetic Y(Gauss),Magnetic Z(Gauss),Time(ms),");
+	//File file = SD.open(filename, FILE_WRITE);
+
+	file = SD.open(filename, FILE_WRITE);
+
+
+
+	file.println("SD has been opened");
+
+
+
+	if (imu.Initialize(16,2000,16))
+
+	{
+
+		file.println("LSM9DS1 has been initialized");
+
+		Wire.setClock(400000L);
+
+	}else{
+
+		file.println("ERROR : LSM9DS1 hasn't been initialized!!");
+
+		while (1)
+
+			;
+
+	}
+
+
+
+	file.println("Accel X(m/s*s),Accel Y(m/s*s),Accel Z(m/s*s),Gyro X(deg/s),Gyro Y(deg/s),Gyro Z(deg/s),Magnetic X(Gauss),Magnetic Y(Gauss),Magnetic Z(Gauss),Time(ms),");
+
+	//file.close();
+
+	MsTimer2::set(2000, Interrupt);
+
+	MsTimer2::start();
+
 }
 
+
+
 void loop()
-{/*
 
-	flag = false;
+{
 
-	if (ReadAcc(&x, &y, &z))
+	bool flag = false;
+
+	//File file;
+
+	float x, y, z;
+
+	String message = "";
+
+	if (imu.ReadAcc(&x, &y, &z))
 
 	{
 
 		flag = true;
 
-		//file = SD.open("data.txt", FILE_WRITE);
+		//file = SD.open(filename, FILE_WRITE);
 
-		file.print(x);
+		message += String(x);
 
-		file.print(',');
+		message += ',';
 
-		file.print(y);
+		message += String(y);
 
-		file.print(',');
+		message += ',';
 
-		file.print(z);
+		message += String(z);
 
-		file.print(',');
+		message += ',';
 
 	}
 
 
 
-	if (ReadGyr(&x, &y, &z))
+	if (imu.ReadGyr(&x, &y, &z))
 
 	{
 
 		if(!flag){
 
-			//file = SD.open("data.txt", FILE_WRITE);
+			flag = true;
 
-			file.print(",,,");
+			//file = SD.open(filename, FILE_WRITE);
+
+			message += ",,,";
 
 		}
 
-		flag = true;
+		message += String(x);
 
-		file.print(x);
+		message += ',';
 
-		file.print(',');
+		message += String(y);
 
-		file.print(y);
+		message += ',';
 
-		file.print(',');
+		message += String(z);
 
-		file.print(z);
-
-		file.print(',');
+		message += ',';
 
 	}else{
 
 		if(flag){
 
-			file.print(",,,");
+			message += ",,,";
 
 		}
 
@@ -108,7 +182,7 @@ void loop()
 
 
 
-	if (ReadMag(&x, &y, &z))
+	if (imu.ReadMag(&x, &y, &z))
 
 	{
 
@@ -116,31 +190,31 @@ void loop()
 
 		{
 
-			//file = SD.open("data.txt", FILE_WRITE);
+			flag = true;
 
-			file.print(",,,,,,");
+			//file = SD.open(filename, FILE_WRITE);
+
+			message += ",,,,,,";
 
 		}
 
-		flag = true;
+		message += String(x);
 
-		file.print(x);
+		message += ',';
 
-		file.print(',');
+		message += String(y);
 
-		file.print(y);
+		message += ',';
 
-		file.print(',');
+		message += String(z);
 
-		file.print(z);
-
-		file.print(',');
+		message += ',';
 
 	}else{
 
 		if(flag){
 
-			file.print(",,,");
+			message += ",,,";
 
 		}
 
@@ -148,21 +222,48 @@ void loop()
 
 
 
-	if(flag){
+	if(flag)
 
-		file.println(millis());
+	{
+
+		message += String(millis());
+
+		file.println(message);
+
+		count++;
+
+		if(count > 100)
+
+		{
+
+			//file.close();
+
+			//file = SD.open(filename, FILE_WRITE);
+
+			count = 0;
+
+		}
 
 		//file.close();
 
 	}
 
-	*/
-# 94 "c:\\Users\\OKU_DAN\\source\\Arduino\\DataLogger\\DataLogger.ino"
- while(!FusionAccGryMag(&x,&y,&z))
-  ;
- Serial.print(x);
- Serial.print(',');
- Serial.print(y);
- Serial.print(',');
- Serial.println(z);
+}*/
+# 128 "c:\\Users\\OKU_DAN\\source\\Arduino\\DataLogger\\DataLogger.ino"
+# 129 "c:\\Users\\OKU_DAN\\source\\Arduino\\DataLogger\\DataLogger.ino" 2
+
+void setup()
+{
+ Serial.begin(115200);
+ Serial.println("Init Sensor");
+ while(!Initialize_LPS331AP())
+  Serial.println("failed");
+ Serial.println("done");
+}
+
+void loop(){
+ float p;
+ if(ReadPrs(&p)){
+  Serial.println(p);
+ }
 }

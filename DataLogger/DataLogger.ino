@@ -1,103 +1,144 @@
-//#include "SD.h"
+/*#include "SD.h"
 #include "LSM9DS1.h"
-#define file Serial
+#include <MsTimer2.h>
 
-//#define SPI_CS_PIN 7
+#define SPI_CS_PIN 10
 
-float x, y, z;
-//File file;
-bool flag;
+LSM_9DS1 imu;
+String filename;
+File file;
+unsigned long count = 0;
+
+void Interrupt(){
+	file.close();
+	file = SD.open(filename, FILE_WRITE);
+}
 
 void setup()
 {
-	Serial.begin(230400);
+	pinMode(SPI_CS_PIN, OUTPUT);
 
-	Serial.println("LSM9DS1 is being initialized......");
-	if (Initialize_LSM9DS1())
+	SD.begin(SPI_CS_PIN);
+
+	for (int i = 1; i < 100;i++){
+		filename = String(i) + ".txt";
+		if (!SD.exists(filename))
+		{
+			break;
+		}
+		if(i >= 99){
+			SD.remove(filename);
+		}
+	}
+
+	//File file = SD.open(filename, FILE_WRITE);
+	file = SD.open(filename, FILE_WRITE);
+
+	file.println("SD has been opened");
+
+	if (imu.Initialize(16,2000,16))
 	{
-		Serial.println("LSM9DS1 has been initialized");
+		file.println("LSM9DS1 has been initialized");
+		Wire.setClock(400000L);
 	}else{
-		Serial.println("ERROR : LSM9DS1 hasn't been initialized!!");
+		file.println("ERROR : LSM9DS1 hasn't been initialized!!");
 		while (1)
 			;
 	}
 
-	//Calibrate_LSM9DS1();
-
-	/*
-	SD.begin(SPI_CS_PIN);
-	if (SD.exists("data.txt")){
-		SD.remove("data.txt");
-	}
-
-	file = SD.open("data.txt", FILE_WRITE);*/
 	file.println("Accel X(m/s*s),Accel Y(m/s*s),Accel Z(m/s*s),Gyro X(deg/s),Gyro Y(deg/s),Gyro Z(deg/s),Magnetic X(Gauss),Magnetic Y(Gauss),Magnetic Z(Gauss),Time(ms),");
+	//file.close();
+	MsTimer2::set(2000, Interrupt);
+	MsTimer2::start();
 }
 
 void loop()
-{/*
-	flag = false;
-	if (ReadAcc(&x, &y, &z))
+{
+	bool flag = false;
+	//File file;
+	float x, y, z;
+	String message = "";
+	if (imu.ReadAcc(&x, &y, &z))
 	{
 		flag = true;
-		//file = SD.open("data.txt", FILE_WRITE);
-		file.print(x);
-		file.print(',');
-		file.print(y);
-		file.print(',');
-		file.print(z);
-		file.print(',');
+		//file = SD.open(filename, FILE_WRITE);
+		message += String(x);
+		message += ',';
+		message += String(y);
+		message += ',';
+		message += String(z);
+		message += ',';
 	}
 
-	if (ReadGyr(&x, &y, &z))
+	if (imu.ReadGyr(&x, &y, &z))
 	{
 		if(!flag){
-			//file = SD.open("data.txt", FILE_WRITE);
-			file.print(",,,");
+			flag = true;
+			//file = SD.open(filename, FILE_WRITE);
+			message += ",,,";
 		}
-		flag = true;
-		file.print(x);
-		file.print(',');
-		file.print(y);
-		file.print(',');
-		file.print(z);
-		file.print(',');
+		message += String(x);
+		message += ',';
+		message += String(y);
+		message += ',';
+		message += String(z);
+		message += ',';
 	}else{
 		if(flag){
-			file.print(",,,");
+			message += ",,,";
 		}
 	}
 
-	if (ReadMag(&x, &y, &z))
+	if (imu.ReadMag(&x, &y, &z))
 	{
 		if (!flag)
 		{
-			//file = SD.open("data.txt", FILE_WRITE);
-			file.print(",,,,,,");
+			flag = true;
+			//file = SD.open(filename, FILE_WRITE);
+			message += ",,,,,,";
 		}
-		flag = true;
-		file.print(x);
-		file.print(',');
-		file.print(y);
-		file.print(',');
-		file.print(z);
-		file.print(',');
+		message += String(x);
+		message += ',';
+		message += String(y);
+		message += ',';
+		message += String(z);
+		message += ',';
 	}else{
 		if(flag){
-			file.print(",,,");
+			message += ",,,";
 		}
 	}
 
-	if(flag){
-		file.println(millis());
+	if(flag)
+	{
+		message += String(millis());
+		file.println(message);
+		count++;
+		if(count > 100)
+		{
+			//file.close();
+			//file = SD.open(filename, FILE_WRITE);
+			count = 0;
+		}
 		//file.close();
 	}
-	*/
-	while(!FusionAccGryMag(&x,&y,&z))
-		;
-	file.print(x);
-	file.print(',');
-	file.print(y);
-	file.print(',');
-	file.println(z);
+}*/
+
+
+#include "LPS331AP.h"
+
+void setup()
+{
+	Serial.begin(115200);
+	Serial.println("Init Sensor");
+	while(!Initialize_LPS331AP())
+		Serial.println("failed");
+	Serial.println("done");
+}
+
+void loop(){
+	float p;
+	if(ReadPrs(&p)){
+		Serial.println(p);
+	}
 }

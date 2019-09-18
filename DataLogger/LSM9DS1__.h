@@ -2,7 +2,6 @@
 
 #define LSM9DS1_M 0x1E
 #define LSM9DS1_AG 0x6B
-
 #define DECLINATION -0.74 // déclinaison (en degrés) pour Japan.
 
 LSM9DS1 imu;
@@ -100,6 +99,7 @@ void Calibrate_LSM9DS1(){
 		Serial.println("Accel senser and Gyro senser will be calibrated.");
 		Serial.println("Put it on stable palce.");
 	}
+	delay(3000);
 	imu.calibrate(true);
 	if (Serial)
 	{
@@ -107,6 +107,7 @@ void Calibrate_LSM9DS1(){
 		Serial.println("Then, Magnetic senser will be calibrated.");
 		Serial.println("Rotate it.");
 	}
+	delay(3000);
 	imu.calibrateMag(true);
 	if (Serial)
 	{
