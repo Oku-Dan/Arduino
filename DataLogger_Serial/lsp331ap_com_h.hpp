@@ -40,8 +40,8 @@ uint8_t lps331apAddress = LPS331AP_ADDR1; //SA0=L(GND)
 #define LPS331AP_WHO_AM_I_DEFAULT 0xbb
 #define LPS331AP_CTRL_REG1_PD 0x00			// In need of power-down, set @0x20 register to this value
 #define LPS331AP_CTRL_REG1_SETUP 0b11110100 // power:on, prs:12.5Hz, tmp:12.5Hz, BDU:no update during reading
-//#define LPS331AP_RES_CONF_SETUP 0x7a		// Suggested value in datasheet.
-#define LPS331AP_RES_CONF_SETUP 0x6a		// Suggested value in datasheet.
+#define LPS331AP_RES_CONF_SETUP 0x7a		// Suggested value in datasheet.
+//#define LPS331AP_RES_CONF_SETUP 0x6a
 
 void writeRegister(uint8_t address, uint8_t destinationRegister, uint8_t value)
 {
@@ -107,6 +107,7 @@ float LPS331AP::ReadTemp()
 	uint8_t tempOutL = readRegister(lps331apAddress, LPS331AP_TEMP_OUT_L);
 	uint8_t tempOutH = readRegister(lps331apAddress, LPS331AP_TEMP_OUT_H);
 	float tempVal = 42.5 + (int16_t)(tempOutH << 8 | tempOutL) / 480.0;
+
 	return tempVal;
 }
 
@@ -116,6 +117,7 @@ float LPS331AP::ReadPress()
 	uint8_t pressOutL = readRegister(lps331apAddress, LPS331AP_PRESS_OUT_L);
 	uint8_t pressOutXL = readRegister(lps331apAddress, LPS331AP_PRESS_OUT_XL);
 	float pressVal = ((uint32_t)pressOutH << 16 | (uint32_t)pressOutL << 8 | (uint32_t)pressOutXL) / 4096.0;
+
 	return pressVal;
 }
 

@@ -1,7 +1,7 @@
 {
+    "programmer": "AVR ISP",
     "board": "arduino:avr:nano",
     "configuration": "cpu=atmega328old",
-    "programmer": "AVRISP mkII",
-    "sketch": "DataLoggre_ALT.ino",
+    "sketch": "HighVoltageDriver.ino",
     "port": "COM4"
 }

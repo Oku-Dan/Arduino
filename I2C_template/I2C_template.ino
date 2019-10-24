@@ -1,4 +1,4 @@
-##include <Wire.h>
+#include <Wire.h>
 
 /////////////////////////MPU9250////////////////////////////
 #define MPU9250_ADDRESS 0x68//I2CでのMPU9250のスレーブアドレス
