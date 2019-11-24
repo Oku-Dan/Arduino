@@ -3,5 +3,6 @@
     "board": "arduino:avr:nano",
     "configuration": "cpu=atmega328old",
     "sketch": "HighVoltageDriver.ino",
-    "port": "COM3"
+    "port": "COM4",
+    "output": "out"
 }

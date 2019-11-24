@@ -1,3 +1,24 @@
+/*
+
+	2019 Oku Dan / oku_dan@yahoo.co.jp
+
+	Adafruit社製LSM9DS1用のI2C版ライブラリです.
+	使用する際はデバイスのSDAとSCLをセンサに接続してください.
+
+	1.LSM_9DS1型クラスを作成
+	2.Initialize(16,2000,16)で初期化（引数はセンサの出力スケール）
+	3.Wire.setClock(400000L);でI2Cを高速モードにするとよい
+	4.availableFIFO()でFIFOバッファにあるデータ数を確認
+	5.その数だけReadAccFIFO(&x, &y, &z)、ReadGyrFIFO(&x, &y, &z)で加速度ジャイロ読み出し
+	6.ReadMag(&x, &y, &z)で磁力センサ読み出し
+	7.4に戻る
+
+	110~113行目ACC_SAMPLING_RATE、GYR_SAMPLING_RAT、MAG_SAMPLING_RATEでサンプリングレートを変更できる（デフォルトは238Hz,238Hz,80Hz）
+	データシートに書いてないけどCTRL_REG1_Mの375行目をいじるとサブモードで磁力センサレートを1000Hzまであげられる
+	FIFOバッファ使わず読みだしても良い.その場合Initialize()内のFIFOInit()をコメントアウトしてavailableFIFO()を読まずにReadAcc(),ReadGyr().
+	内部フィルタでハイパス・ローパスフィルタをかけられるらしいがFiltersInit()が未完成.コメントアウトしてあるので誰か作って.
+
+*/
 #include <Wire.h>
 
 #define LSM9DS1_M 0x1E
@@ -353,7 +374,7 @@ void LSM_9DS1::MagInit(int scale)
 	tempRegValue |= (0b1 & 0x1) << 7;
 	tempRegValue |= (0b11 & 0x3) << 5;
 	tempRegValue |= (MAG_SAMPLING_RATE & 0x7) << 2;
-	tempRegValue |= 0b10;	//set ODR 300Hz
+	tempRegValue |= 0b00;	//change to 10 to set ODR faster
 	WriteByte(LSM9DS1_M, CTRL_REG1_M, tempRegValue);
 
 	// CTRL_REG2_M (Default value 0x00)

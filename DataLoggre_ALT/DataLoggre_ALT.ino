@@ -1,6 +1,6 @@
 
 #include "SD.h"
-#include "LSM9DS1_ALT.h"
+#include "LSM9DS1.h"
 #include "lsp331ap_com_h.hpp"
 #include <MsTimer2.h>
 

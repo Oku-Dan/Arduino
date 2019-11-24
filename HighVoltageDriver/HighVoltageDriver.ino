@@ -14,6 +14,7 @@ void setup(){
 	DDRD = DDRD | 0b11111000; // enable D2~D6
 	PORTD = PORTD & 0b00000111; // set D2~D6 LOW
 
+	delay(1.02);
 	unsigned long last_CW_time = 0;
 	unsigned long last_PULSE_time = 0;
 	unsigned long interval_PULSE = INTERVAL_PULSE;
